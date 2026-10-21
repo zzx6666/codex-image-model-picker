@@ -2,7 +2,7 @@
 
 一个面向 Codex 的图片生成 Skill：读取当前 API Key 可访问的模型，由你选择生图模型，再通过 OpenAI 兼容的图片接口生成或编辑图片。
 
-Skill 名称保持为 `codex-image2`，以便与已有配置和调用方式兼容。
+Skill 名称是 `codex-image-model-picker`，与仓库名称保持一致。
 
 ## 主要能力
 
@@ -37,14 +37,14 @@ POST /v1/images/edits
 
 ```powershell
 git clone https://github.com/zzx6666/codex-image-model-picker.git `
-  "$HOME\.codex\skills\codex-image2"
+  "$HOME\.codex\skills\codex-image-model-picker"
 ```
 
 macOS：
 
 ```bash
 git clone https://github.com/zzx6666/codex-image-model-picker.git \
-  "$HOME/.codex/skills/codex-image2"
+  "$HOME/.codex/skills/codex-image-model-picker"
 ```
 
 也可以在 Codex 中直接说：
@@ -59,13 +59,13 @@ https://github.com/zzx6666/codex-image-model-picker
 在 Codex 中调用：
 
 ```text
-使用 $codex-image2 帮我配置图片服务。
+使用 $codex-image-model-picker 帮我配置图片服务。
 ```
 
 也可以直接运行：
 
 ```powershell
-python "$HOME\.codex\skills\codex-image2\codex-image2.py" configure
+python "$HOME\.codex\skills\codex-image-model-picker\codex_image_model_picker.py" configure
 ```
 
 配置页只监听 `127.0.0.1` 的随机端口，使用一次性访问凭据和来源校验。Key 只通过本地页面输入，不进入 Codex 聊天、命令参数或 URL。
@@ -76,8 +76,8 @@ Windows 用户也可以双击 `配置图片服务.cmd`，macOS 用户可双击 `
 
 | 系统 | 配置文件 | Key 存储 |
 | --- | --- | --- |
-| Windows | `%APPDATA%\codex-image2\config.json` | 当前用户 DPAPI |
-| macOS | `~/Library/Application Support/codex-image2/config.json` | 登录钥匙串 |
+| Windows | `%APPDATA%\codex-image-model-picker\config.json` | 当前用户 DPAPI |
+| macOS | `~/Library/Application Support/codex-image-model-picker/config.json` | 登录钥匙串 |
 
 旧环境变量 `CODEX_API_URL` 和 `CODEX_API_KEY` 仍可使用，但必须同时设置。只设置 Key 时程序会拒绝发送，避免把凭据误发到未经指定的服务。
 
@@ -86,7 +86,7 @@ Windows 用户也可以双击 `配置图片服务.cmd`，macOS 用户可双击 `
 先查看当前 Key 的模型：
 
 ```powershell
-python "<skill-dir>\codex-image2.py" models
+python "<skill-dir>\codex_image_model_picker.py" models
 ```
 
 输出示例：
@@ -101,7 +101,7 @@ python "<skill-dir>\codex-image2.py" models
 生成图片：
 
 ```powershell
-python "<skill-dir>\codex-image2.py" generate `
+python "<skill-dir>\codex_image_model_picker.py" generate `
   --model "gpt-image-2.5-sunburst" `
   --name "花村樱花鸟居与日式城堡" `
   --prompt "传统日式山城村落，樱花、红色鸟居、石桥与城堡" `
@@ -114,7 +114,7 @@ python "<skill-dir>\codex-image2.py" generate `
 编辑图片：
 
 ```powershell
-python "<skill-dir>\codex-image2.py" edit `
+python "<skill-dir>\codex_image_model_picker.py" edit `
   --model "gpt-image-2.5-sunburst" `
   --name "雪山背景人物图" `
   --image "input.png" `
@@ -125,7 +125,7 @@ python "<skill-dir>\codex-image2.py" edit `
 只校验请求、不联网也不扣费：
 
 ```powershell
-python "<skill-dir>\codex-image2.py" generate `
+python "<skill-dir>\codex_image_model_picker.py" generate `
   --model "gpt-image-2.5-sunburst" `
   --name "请求校验" `
   --prompt "测试提示词" `
@@ -154,7 +154,7 @@ python "<skill-dir>\codex-image2.py" generate `
 ```
 
 ```powershell
-python "<skill-dir>\codex-image2.py" generate-batch `
+python "<skill-dir>\codex_image_model_picker.py" generate-batch `
   --input "jobs.jsonl" `
   --concurrency 2
 ```

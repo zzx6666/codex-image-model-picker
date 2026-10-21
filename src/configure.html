@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>配置图片服务 · Codex Image2</title>
+<title>配置图片服务 · Codex Image Model Picker</title>
 <style nonce="{{NONCE}}">
 :root{color-scheme:light;font:15px/1.7 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;color:#243143;background:#f5f6f8}
 *{box-sizing:border-box}body{margin:0}main{max-width:650px;margin:64px auto;padding:0 24px 32px}.brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:14px;letter-spacing:.03em;color:#526174}.mark{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#e1eee9;color:#25664f;font-size:21px}h1{font-size:30px;line-height:1.3;letter-spacing:-.03em;margin:26px 0 10px}p{margin:0 0 20px;color:#617083}.card{margin-top:28px;background:white;border:1px solid #e0e5eb;border-radius:18px;padding:28px;box-shadow:0 7px 22px #1b354407}label{display:block;font-weight:650;margin-bottom:8px}.field{margin:0 0 22px}input{width:100%;border:1px solid #cbd4de;border-radius:9px;background:#fff;padding:12px 13px;font:inherit;color:#243143;outline:none}input:focus{border-color:#28755c;box-shadow:0 0 0 3px #28755c18}input:disabled{background:#f1f4f6}.hint{font-size:12px;color:#748194;margin-top:7px}.keyrow{display:flex;gap:8px}.keyrow input{min-width:0}.toggle{white-space:nowrap;padding:0 12px;background:#f5f7f8;color:#435467;border:1px solid #d9e0e7;border-radius:9px}.buttons{display:flex;gap:10px;flex-wrap:wrap}button{font:inherit;cursor:pointer;transition:background .15s}button:focus-visible{outline:3px solid #91bbaa;outline-offset:3px}button:disabled{cursor:wait;opacity:.55}.primary,.secondary{border-radius:9px;padding:11px 18px;font-weight:650}.primary{background:#286b54;color:white;border:1px solid #286b54}.primary:hover{background:#205740}.secondary{background:white;border:1px solid #ccd6df;color:#34485e}.secondary:hover{background:#f6f8fa}.source{font-size:12px;padding:9px 12px;margin:0 0 24px;border-radius:8px;background:#f2f5f7;color:#657487}.source.good{color:#29674f;background:#edf6f0}.message{padding:13px 15px;border:1px solid #d8e2ed;background:#f3f6fa;border-radius:9px;margin-top:20px;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}.message.success{background:#edf7f0;border-color:#cee5d5;color:#246442}.message.warning{background:#fff8e8;border-color:#efdfb8;color:#77551c}.message.error{background:#fff1ef;border-color:#efd0cb;color:#923f34}[hidden]{display:none!important}details{border-top:1px solid #e7ecf0;margin-top:25px;padding-top:18px}summary{cursor:pointer;color:#52677c;font-size:13px}details p{font-size:12px;margin:12px 0}.small{font-size:12px;padding:8px 12px}.foot{font-size:12px;color:#7b8797;margin-top:20px;line-height:1.9}.preview{display:block;max-width:100%;max-height:280px;border-radius:10px;margin-top:15px}.finish{display:block;margin:18px auto 0;background:none;border:0;color:#426854;font-size:13px;text-decoration:underline;text-underline-offset:4px}code{overflow-wrap:anywhere}.steps{font-size:12px;display:flex;gap:9px;margin:22px 0;color:#638272}.dot{color:#b5bfc9}@media(max-width:600px){main{margin:28px auto;padding:0 18px}.card{padding:22px}h1{font-size:27px}.buttons>button{flex:1}}
@@ -32,7 +32,7 @@
 <ul id="model-list" class="model-list"></ul>
 </section>
 <img id="preview" class="preview" alt="测试生成的图片" hidden>
-<details><summary>检测说明与生图测试</summary><p>“检测连接”只访问模型列表，不发起生图请求。Codex Image2 可在生成或编辑时指定模型 ID；模型列表不保证图片接口一定支持该型号。</p><p>部分服务隐藏图片模型。带 gpt-image- 前缀的型号会标记为图片模型候选。</p><button id="image-test" type="button" class="secondary small">测试生图（可能计费）</button><p>生图测试会请求 1 张 1024 × 1024、低质量图片。费用以你的服务商为准。测试当前填写的信息，不会自动保存。</p></details>
+<details><summary>检测说明与生图测试</summary><p>“检测连接”只访问模型列表，不发起生图请求。Codex Image Model Picker 可在生成或编辑时指定模型 ID；模型列表不保证图片接口一定支持该型号。</p><p>部分服务隐藏图片模型。带 gpt-image- 前缀的型号会标记为图片模型候选。</p><button id="image-test" type="button" class="secondary small">测试生图（可能计费）</button><p>生图测试会请求 1 张 1024 × 1024、低质量图片。费用以你的服务商为准。测试当前填写的信息，不会自动保存。</p></details>
 </section>
 <div class="foot" id="storage">配置保存到当前系统用户的目录，升级 Skill 后仍然保留。无需设置环境变量，也无需重启 Codex。</div>
 <button type="button" class="finish" id="finish">完成配置，关闭本地服务</button>
@@ -40,9 +40,9 @@
 <script nonce="{{NONCE}}">
 'use strict';
 const el=id=>document.getElementById(id);
-const token=location.hash.slice(1)||sessionStorage.getItem('codex-image2-session')||'';
+const token=location.hash.slice(1)||sessionStorage.getItem('codex-image-model-picker-session')||'';
 // Only the short-lived page token survives reloads. Never persist the API key.
-if(token)sessionStorage.setItem('codex-image2-session',token);
+if(token)sessionStorage.setItem('codex-image-model-picker-session',token);
 history.replaceState(null,'',location.pathname);
 let active=true, busy=false, hasSavedKey=false, savedBase='', revealedSavedKey=false, revealedValue='', hideTimer=null, pendingSave=false;
 function message(text,level='info'){el('message').textContent=text;el('message').className='message '+level;el('message').hidden=false;}
@@ -121,7 +121,7 @@ el('key').addEventListener('input',()=>{revealedSavedKey=false;revealedValue='';
 el('url').addEventListener('input',()=>{if(revealedSavedKey)hideKey();invalidateCheck();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)hideKey();});
 window.addEventListener('pagehide',()=>{hideKey();el('key').value='';});
-el('finish').addEventListener('click',async()=>{if(busy)return;hideKey();el('key').value='';sessionStorage.removeItem('codex-image2-session');try{const result=await call('close',{});active=false;setBusy(false);message(result.message,'success');}catch{message('本地服务已结束，可以关闭此页面。');active=false;setBusy(false);}});
+el('finish').addEventListener('click',async()=>{if(busy)return;hideKey();el('key').value='';sessionStorage.removeItem('codex-image-model-picker-session');try{const result=await call('close',{});active=false;setBusy(false);message(result.message,'success');}catch{message('本地服务已结束，可以关闭此页面。');active=false;setBusy(false);}});
 if(!token){active=false;setBusy(false);message('配置链接缺少访问凭据。请回到 Codex，重新运行 configure 打开配置页。','error');}
 else refresh().catch(error=>{message(error instanceof TypeError?'配置页已过期或服务已结束，请回到 Codex 重新打开。':error.message,'error');});
 </script>

@@ -21,7 +21,10 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location("codex_image2", ROOT / "codex-image2.py")
+SPEC = importlib.util.spec_from_file_location(
+    "codex_image_model_picker",
+    ROOT / "codex_image_model_picker.py",
+)
 assert SPEC and SPEC.loader
 image2 = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = image2
@@ -99,7 +102,7 @@ class Provider:
         self.thread.join(2)
 
 
-class CodexImage2Tests(unittest.TestCase):
+class CodexImageModelPickerTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
@@ -143,6 +146,21 @@ class CodexImage2Tests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(image2.AppError, "CODEX_API_URL"):
                 image2.ConfigStore(self.root / "missing.json").resolve(require_key=True)
+
+    def test_legacy_config_is_migrated_to_new_location(self):
+        legacy = self.root / "legacy" / "config.json"
+        new = self.root / "new" / "config.json"
+        image2.ConfigStore(legacy).save("https://example.com", self.key)
+        store = image2.ConfigStore(new)
+        store.legacy_path = legacy
+        settings = store.resolve(require_key=True)
+        self.assertEqual(settings.api_key, self.key)
+        self.assertEqual(settings.api_url, "https://example.com/v1")
+        self.assertTrue(new.is_file())
+        self.assertEqual(
+            json.loads(new.read_text(encoding="utf-8"))["api_url"],
+            "https://example.com/v1",
+        )
 
     def test_normalize_address_validates_port_and_loopback(self):
         self.assertEqual(

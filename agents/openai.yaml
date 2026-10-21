@@ -1,4 +1,4 @@
 interface:
-  display_name: "Codex Image2"
+  display_name: "Codex Image Model Picker"
   short_description: "选择可用图片模型并生成或编辑图片"
-  default_prompt: "使用 $codex-image2 展示当前可用的图片模型，让我选择后再生成或编辑图片。"
+  default_prompt: "使用 $codex-image-model-picker 展示当前可用的图片模型，让我选择后再生成或编辑图片。"

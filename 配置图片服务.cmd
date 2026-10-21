@@ -10,11 +10,11 @@ pause
 exit /b 1
 
 :use_py
-py -3 "%~dp0codex-image2.py" configure
+py -3 "%~dp0codex_image_model_picker.py" configure
 if errorlevel 1 pause
 exit /b %errorlevel%
 
 :use_python
-python "%~dp0codex-image2.py" configure
+python "%~dp0codex_image_model_picker.py" configure
 if errorlevel 1 pause
 exit /b %errorlevel%

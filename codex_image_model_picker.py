@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Codex Image2：使用用户选择的图片模型生成或编辑图片。"""
+"""Codex Image Model Picker：使用用户选择的图片模型生成或编辑图片。"""
 
 from __future__ import annotations
 
@@ -40,7 +40,10 @@ PREFERRED_MODEL = "gpt-image-2.5"
 DEFAULT_SIZE = "1024x1024"
 DEFAULT_QUALITY = "auto"
 DEFAULT_OUT_DIR = "."
-KEYCHAIN_SERVICE = "codex-image2"
+KEYCHAIN_SERVICE = "codex-image-model-picker"
+LEGACY_KEYCHAIN_SERVICE = "codex-image2"
+CONFIG_DIR_NAME = "codex-image-model-picker"
+LEGACY_CONFIG_DIR_NAME = "codex-image2"
 RETRYABLE = {429, 500, 502, 503, 504, 524}
 MAX_RESPONSE_BYTES = 64 * 1024 * 1024
 SKILL_DIR = Path(__file__).resolve().parent
@@ -64,17 +67,26 @@ def random_id(length: int = 24) -> str:
     return secrets.token_hex(length)
 
 
+def config_root() -> Path:
+    if sys.platform == "win32":
+        return Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming")
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support"
+    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+
+
 def config_path() -> Path:
-    override = os.environ.get("CODEX_IMAGE2_CONFIG", "").strip()
+    override = (
+        os.environ.get("CODEX_IMAGE_MODEL_PICKER_CONFIG", "").strip()
+        or os.environ.get("CODEX_IMAGE2_CONFIG", "").strip()
+    )
     if override:
         return Path(override).expanduser()
-    if sys.platform == "win32":
-        base = Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming")
-    elif sys.platform == "darwin":
-        base = Path.home() / "Library" / "Application Support"
-    else:
-        base = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
-    return base / "codex-image2" / "config.json"
+    return config_root() / CONFIG_DIR_NAME / "config.json"
+
+
+def legacy_config_path() -> Path:
+    return config_root() / LEGACY_CONFIG_DIR_NAME / "config.json"
 
 
 def normalize_api_base(value: str) -> str:
@@ -216,25 +228,27 @@ def open_secret(secret: dict[str, str]) -> str:
         except (ValueError, UnicodeDecodeError, AppError) as exc:
             raise AppError("无法读取已保存的密钥，请解锁系统凭据存储，或重新配置") from exc
     if kind == "macos-keychain" and sys.platform == "darwin":
-        try:
-            result = subprocess.run(
-                [
-                    "/usr/bin/security",
-                    "find-generic-password",
-                    "-a",
-                    value,
-                    "-s",
-                    KEYCHAIN_SERVICE,
-                    "-w",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=60,
-                check=True,
-            )
-            return result.stdout.strip()
-        except (OSError, subprocess.SubprocessError) as exc:
-            raise AppError("无法读取 macOS 钥匙串，请解锁后重试") from exc
+        for service in (KEYCHAIN_SERVICE, LEGACY_KEYCHAIN_SERVICE):
+            try:
+                result = subprocess.run(
+                    [
+                        "/usr/bin/security",
+                        "find-generic-password",
+                        "-a",
+                        value,
+                        "-s",
+                        service,
+                        "-w",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    check=True,
+                )
+                return result.stdout.strip()
+            except (OSError, subprocess.SubprocessError):
+                continue
+        raise AppError("无法读取 macOS 钥匙串，请解锁后重试")
     raise AppError("不支持的本地密钥存储格式，请重新配置")
 
 
@@ -259,11 +273,33 @@ def delete_secret(secret: dict[str, str]) -> None:
 class ConfigStore:
     def __init__(self, path: Path | None = None):
         self.path = path or config_path()
+        self.legacy_path = (
+            legacy_config_path()
+            if path is None and self.path != legacy_config_path()
+            else None
+        )
+        self._migrate_legacy = False
 
     def resolve(self, require_key: bool = True) -> Settings:
         try:
             data = self.path.read_bytes()
         except FileNotFoundError:
+            if self.legacy_path is not None and self.legacy_path.is_file():
+                data = self.legacy_path.read_bytes()
+                self._migrate_legacy = True
+            else:
+                return self._resolve_environment(require_key)
+        except OSError as exc:
+            raise AppError("无法读取本地配置，请检查用户配置目录的访问权限") from exc
+        settings, secret = self._load(data, require_key)
+        if self._migrate_legacy:
+            with contextlib.suppress(AppError):
+                self._write_disk(settings.api_url, secret)
+                self._migrate_legacy = False
+        return settings
+
+    def _resolve_environment(self, require_key: bool) -> Settings:
+        try:
             key = os.environ.get("CODEX_API_KEY", "").strip()
             base = os.environ.get("CODEX_API_URL", "").strip()
             if not key:
@@ -279,8 +315,14 @@ class ConfigStore:
             api_url = normalize_api_base(base)
             validate_key(key)
             return Settings(api_url=api_url, api_key=key, source="environment", storage="environment")
-        except OSError as exc:
-            raise AppError("无法读取本地配置，请检查用户配置目录的访问权限") from exc
+        except AppError:
+            raise
+        except Exception as exc:
+            raise AppError("无法读取环境变量配置") from exc
+
+    def _load(
+        self, data: bytes, require_key: bool
+    ) -> tuple[Settings, dict[str, str]]:
         try:
             if len(data) > 64 * 1024:
                 raise ValueError("too large")
@@ -304,13 +346,16 @@ class ConfigStore:
         if require_key:
             settings.api_key = open_secret(secret)
             validate_key(settings.api_key)
-        return settings
+        return settings, secret
 
     def save(self, api_url: str, key: str) -> None:
         base = normalize_api_base(api_url)
         key = key.strip()
         validate_key(key)
         secret = seal_secret(key)
+        self._write_disk(base, secret)
+
+    def _write_disk(self, base: str, secret: dict[str, str]) -> None:
         committed = False
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -336,7 +381,8 @@ class ConfigStore:
             raise AppError("无法保存配置，请检查用户配置目录的权限") from exc
         finally:
             if not committed:
-                delete_secret(secret)
+                if secret.get("kind") != "macos-keychain":
+                    delete_secret(secret)
 
     def status(self) -> dict[str, Any]:
         try:
@@ -994,7 +1040,10 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def parse_generate(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="codex-image2.py generate", allow_abbrev=False)
+    parser = argparse.ArgumentParser(
+        prog="codex_image_model_picker.py generate",
+        allow_abbrev=False,
+    )
     add_common_arguments(parser)
     parser.add_argument("--prompt", default="")
     parser.add_argument("--prompt-file", default="")
@@ -1003,7 +1052,10 @@ def parse_generate(argv: list[str]) -> argparse.Namespace:
 
 
 def parse_edit(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="codex-image2.py edit", allow_abbrev=False)
+    parser = argparse.ArgumentParser(
+        prog="codex_image_model_picker.py edit",
+        allow_abbrev=False,
+    )
     add_common_arguments(parser)
     parser.add_argument("--image", action="append", default=[])
     parser.add_argument("--mask", default="")
@@ -1014,7 +1066,10 @@ def parse_edit(argv: list[str]) -> argparse.Namespace:
 
 
 def parse_batch(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="codex-image2.py generate-batch", allow_abbrev=False)
+    parser = argparse.ArgumentParser(
+        prog="codex_image_model_picker.py generate-batch",
+        allow_abbrev=False,
+    )
     add_common_arguments(parser)
     parser.add_argument("--input", required=True)
     parser.add_argument("--concurrency", type=int, default=2)
@@ -1571,7 +1626,10 @@ def serve_configuration() -> None:
 
 
 def run_configure(argv: list[str]) -> None:
-    parser = argparse.ArgumentParser(prog="codex-image2.py configure", allow_abbrev=False)
+    parser = argparse.ArgumentParser(
+        prog="codex_image_model_picker.py configure",
+        allow_abbrev=False,
+    )
     parser.add_argument("--no-browser", action="store_true", help="只输出配置页地址")
     args = parser.parse_args(argv)
     command = [sys.executable, str(Path(__file__).resolve()), "_configure-server"]
@@ -1622,7 +1680,7 @@ def run_configure(argv: list[str]) -> None:
 
 def usage() -> None:
     print(
-        "Usage: codex-image2.py "
+        "Usage: codex_image_model_picker.py "
         "<configure|status|models|generate|generate-batch|edit> [options]",
         file=sys.stderr,
     )

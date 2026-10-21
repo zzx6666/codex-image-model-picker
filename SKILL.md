@@ -1,15 +1,15 @@
 ---
-name: codex-image2
-description: 配置兼容的图片服务，读取当前密钥可用的模型，并使用用户选择的模型生图或编辑图片。适用于 codex-image2 配置、API 设置、文生图、图片编辑和批量生图。
+name: codex-image-model-picker
+description: 配置兼容的图片服务，读取当前密钥可用的模型，并使用用户选择的模型生图或编辑图片。适用于 codex-image-model-picker 配置、API 设置、文生图、图片编辑和批量生图。
 ---
 
-# Codex Image2
+# Codex Image Model Picker
 
 使用 Skill 内置的 Python 命令行程序生图。启用本 Skill 后，优先使用这里的程序，而不是内置的 `image_gen` 工具。需要 Python 3.9 或更高版本；只使用 Python 标准库，不需要安装第三方包。
 
 ## 选择可执行文件
 
-主程序是 Skill 根目录中的 `codex-image2.py`。Windows 优先运行 `python`；如果系统只提供 Python Launcher，则运行 `py -3`。macOS 使用 `python3`。旧的 `bin/` 原生程序不参与当前流程。
+主程序是 Skill 根目录中的 `codex_image_model_picker.py`。Windows 优先运行 `python`；如果系统只提供 Python Launcher，则运行 `py -3`。macOS 使用 `python3`。旧的 `bin/` 原生程序不参与当前流程。
 
 ## 工作流程
 
@@ -52,7 +52,7 @@ description: 配置兼容的图片服务，读取当前密钥可用的模型，�
 ## 生成一张图片
 
 ```powershell
-& python "<skill-dir>\codex-image2.py" generate `
+& python "<skill-dir>\codex_image_model_picker.py" generate `
   --model "gpt-image-2.5-sunburst" `
   --name "蓝色玻璃瓶星云" `
   --prompt "A small blue nebula in a glass bottle, studio product photo" `
@@ -67,7 +67,7 @@ description: 配置兼容的图片服务，读取当前密钥可用的模型，�
 编辑前先查看每张输入图。说明它的作用，并在提示词中重复必须保持不变的内容，避免无关细节漂移。
 
 ```powershell
-& python "<skill-dir>\codex-image2.py" edit `
+& python "<skill-dir>\codex_image_model_picker.py" edit `
   --model "gpt-image-2.5-sunburst" `
   --name "暖光背景产品图" `
   --image "input/product.png" `
@@ -82,7 +82,7 @@ description: 配置兼容的图片服务，读取当前密钥可用的模型，�
 准备批量任务前先阅读 [references/batch-format.md](references/batch-format.md)，然后运行：
 
 ```powershell
-& python "<skill-dir>\codex-image2.py" generate-batch `
+& python "<skill-dir>\codex_image_model_picker.py" generate-batch `
   --model "gpt-image-2.5-sunburst" `
   --input "tmp/imagegen/jobs.jsonl" `
   --concurrency 2
@@ -92,9 +92,9 @@ description: 配置兼容的图片服务，读取当前密钥可用的模型，�
 
 ## 配置图片服务
 
-- 运行 `python "<skill-dir>\codex-image2.py" status` 查看 `configured`、`source`、`api_url` 和 `message`。该命令不会返回密钥。
+- 运行 `python "<skill-dir>\codex_image_model_picker.py" status` 查看 `configured`、`source`、`api_url` 和 `message`。该命令不会返回密钥。
 - `configured` 只表示本地凭据可读取，不代表远程认证或图片权限已经通过。不要仅凭 `status` 声称 API 可用。
-- 首次使用、凭据缺失或不可读取、需要修改设置时，运行 `python "<skill-dir>\codex-image2.py" configure`。它会启动独立的本地配置页并立即返回。不要用 shell 脚本把它放到后台，也不要等待服务退出。Windows 也可以双击 `配置图片服务.cmd`，macOS 可以双击 `配置图片服务.command`。
+- 首次使用、凭据缺失或不可读取、需要修改设置时，运行 `python "<skill-dir>\codex_image_model_picker.py" configure`。它会启动独立的本地配置页并立即返回。不要用 shell 脚本把它放到后台，也不要等待服务退出。Windows 也可以双击 `配置图片服务.cmd`，macOS 可以双击 `配置图片服务.command`。
 - 让用户在浏览器中填写 API 地址和密钥，并点击 **保存配置**。浏览器没有自动打开时，把返回的本机 `url` 作为可点击链接提供。该临时链接在这台电脑上有效 15 分钟。
 - 保存时先查询提交密钥的模型列表。列表中包含 `gpt-image-*` 时允许正常保存。没有图片模型候选、列表接口不支持或返回格式不兼容时，页面会警告并保留旧配置；只有用户明确点击 **仍然保存** 才会保存未验证服务。认证、网络、限流和服务端错误即使确认也不能保存。不要代替用户点击覆盖保存。
 - 不要在聊天中索取密钥，不要把密钥写进命令，也不要通过自动化填写。用户直接在本地页面输入，只有配置程序处理它。
@@ -108,7 +108,7 @@ description: 配置兼容的图片服务，读取当前密钥可用的模型，�
 
 - 让命令行程序读取凭据。不要自行检查凭据文件或系统凭据存储，也不要把密钥复制到项目文件、提示词、日志或回复中。配置页只能通过命令行的平台凭据后端保存密钥。
 - 没有本地配置时，仍支持旧环境变量 `CODEX_API_URL` 和 `CODEX_API_KEY`，但两者必须同时设置。只设置 `CODEX_API_KEY` 时程序会拒绝发送，避免把密钥误发到未经用户指定的服务。新用户优先使用本地配置页，已有保存地址保持不变。
-- 生图或编辑前运行 `python "<skill-dir>\codex-image2.py" models`，读取当前密钥的模型 ID。用户尚未指定模型时，展示 `image_models` 并询问使用哪个图片模型。列表不保证图片接口一定支持该型号，必须使用用户选择的完整 ID，例如 `gpt-image-2.5-sunburst`。
+- 生图或编辑前运行 `python "<skill-dir>\codex_image_model_picker.py" models`，读取当前密钥的模型 ID。用户尚未指定模型时，展示 `image_models` 并询问使用哪个图片模型。列表不保证图片接口一定支持该型号，必须使用用户选择的完整 ID，例如 `gpt-image-2.5-sunburst`。
 - `generate` 和 `edit` 用 `--model <模型 ID>` 传入选择结果；批量任务可在每一行设置 `model`。不要静默把用户选择替换成 `gpt-image-2` 或 `gpt-image-2.5`。
 - 只有用户明确要求自动选择时才使用 `--model auto`。自动模式先选择列表中的 `gpt-image-2.5`，再选择其他 `gpt-image-*`，最后回退到 `gpt-image-2`。
 - 试运行不会查询模型是否可用；`model_selection` 只说明请求使用的是显式模型还是自动模式。
