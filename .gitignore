@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
+
+# 本地配置、生成结果和运行产物
+config.json
+output/
+image-*.png
+[0-9]*. *.png
+[0-9]*. *.jpg
+[0-9]*. *.jpeg
+[0-9]*. *.webp
+
+# Python 版本不再使用旧的 Go 实现和预编译文件
+bin/
+src/*.go
